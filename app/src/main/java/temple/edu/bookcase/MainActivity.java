@@ -26,7 +26,7 @@ import edu.temple.audiobookplayer.AudiobookService.MediaControlBinder;
 
 public class MainActivity extends AppCompatActivity implements BookListFragment.BookListFragmentInterface, BookDetailsFragment.BookDetailsFragmentInterface, ControlFragment.ControlFragmentInterface {
 
-    BookList BookList_MainActivity = new BookList(new ArrayList<Book>());
+    BookList BookList_MainActivity = new BookList(new ArrayList<>());
     String restoreBookList = "RESTORE_LIST";
     String restorePointAsOfAction = "RESTORE_TIME_STAMP";
     String restoreBinaryAudioState = "RESTORE_PLAYING_OR_NOT";
@@ -49,7 +49,6 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
 
     int selectionOnResetForDetailFrag; //hold our selection in case of context switch
     String restoreSelection = "RESTORE_SELEC";
-
 
 
     int REQUEST_CODE = 1;
