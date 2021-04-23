@@ -24,59 +24,65 @@ import java.util.ArrayList;
 
 public class BookSearchActivity extends AppCompatActivity {
 
-    EditText searchBox;
-    Button searchButton;
-    BookList searchedBooksFound;
+    private final String urlPrefix = "https://kamorris.com/lab/cis3515/search.php?term=";
+    public static final String BOOKLIST_KEY = "booklist";
 
-    RequestQueue requestQueue;
+    // The JSON object fields for a book
+    private final String id = "id", title = "title", author = "author", cover_url = "cover_url", duration ="duration";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_book_search);
 
-        searchBox    = findViewById(R.id.editTextSearch);
-        searchButton = findViewById(R.id.buttonSearch);
-        searchedBooksFound = new BookList(new ArrayList<>());
+        final RequestQueue requestQueue = Volley.newRequestQueue(this);
 
-        requestQueue = Volley.newRequestQueue(this);//set up volley
-
-        searchButton.setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.searchButton).setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                String urlstr = "https://kamorris.com/lab/cis3515/search.php?term=" + searchBox.getText().toString();
-                //We are using arrays for the ONLY purpose being that this is an array of JSONobjects
-                JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.GET, urlstr, null, new Response.Listener<JSONArray>() {
+            public void onClick(View view) {
+                String searchUrl = urlPrefix + ((EditText) findViewById(R.id.searchEditText)).getText().toString();
+                requestQueue.add(new JsonArrayRequest(searchUrl, new Response.Listener<JSONArray>() {
                     @Override
                     public void onResponse(JSONArray response) {
-                        for(int i = 0; i < response.length(); i++) { //we are returned an array from responses
-                            try {
-                                JSONObject holder = response.getJSONObject(i);
-                                searchedBooksFound.getLibrary()
-                                        .add(new Book(//parse the array by iterating through the returned search matches,
-                                                Integer.parseInt(holder.getString("id")),
-                                                holder.getInt("duration"),
-                                                holder.getString("title"),
-                                                holder.getString("author"),
-                                                holder.getString("cover_url")));
-                            } catch (JSONException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        Intent retIntent = new Intent();
-                        retIntent.putExtra("BOOK_LIST", searchedBooksFound); //send back the info with correct keys and codes
-                        setResult(12, retIntent);
+                        Intent resultIntent = new Intent();
+
+                        // Return retrieved books to calling activity
+                        resultIntent.putExtra(BOOKLIST_KEY, getBookListFromJsonArray(response));
+                        setResult(RESULT_OK, resultIntent);
                         finish();
                     }
                 }, new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Toast.makeText(BookSearchActivity.this, "Unable to fulfill your request. Please try again.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getApplicationContext(), getString(R.string.search_error_message), Toast.LENGTH_SHORT).show();
+                        finish();
                     }
-                });
-
-                requestQueue.add(jsonArrayRequest);
+                }));
             }
         });
+
+        findViewById(R.id.cancelButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                finish();
+            }
+        });
+    }
+
+    private BookList getBookListFromJsonArray(JSONArray booksArray) {
+        BookList bookList = new BookList();
+        JSONObject tmpBook;
+
+        // Convert all books retrieved in the JSON array to books in a booklist object
+        for (int i = 0; i < booksArray.length(); i++) {
+            try {
+                tmpBook = booksArray.getJSONObject(i);
+                bookList.add(new Book(tmpBook.getInt(id), tmpBook.getString(title), tmpBook.getString(author), tmpBook.getString(cover_url), tmpBook.getInt("duration")));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return bookList;
     }
 }

@@ -7,6 +7,7 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.AppCompatSeekBar;
 import androidx.fragment.app.Fragment;
 
 import android.util.Log;
@@ -24,163 +25,86 @@ import java.util.Objects;
 import temple.edu.bookcase.Book;
 import temple.edu.bookcase.R;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link ControlFragment#newInstance} factory method to
- * create an instance of this fragment.
- */
+
 public class ControlFragment extends Fragment {
 
-    public Button playb, pauseb, stopb;
-    public SeekBar bookProgressSeekBar;
-    public TextView nowPlayingTV;
+    private ControlInterface parentActivity;
 
-    ControlFragmentInterface tester;
-
-    int bookProgress, maxDur = 0;
-    Book book;
-    boolean fromInitOfBook = false;
-    boolean created = true;
+    private TextView nowPlayingTextView;
+    private SeekBar seekBar;
 
     public ControlFragment() {
         // Required empty public constructor
     }
 
     @Override
-    public void onAttach(@NonNull Context context) {
+    public void onAttach(Context context) {
         super.onAttach(context);
-        try {
-            tester = (ControlFragment.ControlFragmentInterface) context; //make sure we are operating on the context of a correct interface activity
-        } catch (ClassCastException e) {
-            throw new ClassCastException(context.toString()
-                    + " must implement BookListFragmentInterface");
-        }
-    }
 
-    @Override
-    public void onDetach() {
-        super.onDetach();
-        tester = null; //null the allocated tester from onAttach()
-    }
-
-    // TODO: Rename and change types and number of parameters
-    public static ControlFragment newInstance() {
-        ControlFragment fragment = new ControlFragment();
-        Bundle args = new Bundle();
-        //args.putParcelable("BookInfo", BookListF);
-        fragment.setArguments(args);
-        return fragment;
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if(savedInstanceState != null) {
-            bookProgress = savedInstanceState.getInt("z");
-            book = savedInstanceState.getParcelable("zz");
-        }
-        /*if (getArguments() != null) {
-        }*/
+        if (context instanceof ControlInterface)
+            parentActivity = (ControlInterface) context;
+        else
+            throw new RuntimeException("Please implement ControlFragment.ControlInterface");
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        View v = inflater.inflate(R.layout.fragment_control, container, false);
-        playb = v.findViewById(R.id.play_button);
-        pauseb = v.findViewById(R.id.pause_button);
-        stopb = v.findViewById(R.id.stop_button);
-        nowPlayingTV = v.findViewById(R.id.nowPlayingTV);
-        bookProgressSeekBar = v.findViewById(R.id.audioSeekBar);
-        v.findViewById(R.id.controlCL).setBackgroundColor(Color.parseColor("#68a0b0"));
-        bookProgressSeekBar.setBackgroundColor(Color.parseColor("#6638e2"));
+        View l = inflater.inflate(R.layout.fragment_control, container, false);
 
-        return v;
-    }
+        nowPlayingTextView = l.findViewById(R.id.nowPlayingTextView);
+        seekBar = l.findViewById(R.id.seekBar);
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-
-
-        playb.setOnClickListener(new View.OnClickListener() {
+        l.findViewById(R.id.playButton).setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                tester.playBookOnClick(bookProgress);
+            public void onClick(View view) {
+                parentActivity.play();
             }
         });
-        pauseb.setOnClickListener(new View.OnClickListener() {
+        l.findViewById(R.id.pauseButton).setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                tester.pauseBookOnClick(bookProgress);
+            public void onClick(View view) {
+                parentActivity.pause();
             }
         });
-        stopb.setOnClickListener(new View.OnClickListener() {
+        l.findViewById(R.id.stopButton).setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                bookProgress = 0;
-                tester.stopBookOnClick();
+            public void onClick(View view) {
+                parentActivity.stop();
             }
         });
-        bookProgressSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+
+        // If the user is dragging the seekbar, update the book position
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if(!fromInitOfBook) {
-                    if (fromUser)
-                        tester.seekToBookOnClick(progress);
-                    else
-                        bookProgressSeekBar.setProgress(progress);
-                }else{
-                    fromInitOfBook = false;
-                    bookProgressSeekBar.setMax(maxDur);
-                    bookProgressSeekBar.setProgress(bookProgress);
-                    String s = "Now Playing: " + book.getTitle() + " by " + book.getAuthor();
-                    nowPlayingTV.setText(s);
-                }
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                if (b)
+                    parentActivity.changePosition(i);
             }
+
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar){}
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
             @Override
-            public void onStopTrackingTouch(SeekBar seekBar){
-                onProgressChanged(seekBar, seekBar.getProgress(), true);
-            }});
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+
+        return l;
     }
 
-    @Override
-    public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
-        super.onViewStateRestored(savedInstanceState);
-        if(savedInstanceState != null){
-            System.out.println("**********************************************************************************");
-            bookProgressSeekBar.setProgress(bookProgress);
-            bookProgressSeekBar.setMax(book.getDuration());
-            updateRealTime(bookProgress);
-            String s = "Now Playing: " + book.getTitle() + " by " + book.getAuthor();
-            nowPlayingTV.setText(s);
-            created = true;
-        }
-    }
-    @Override
-    public void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-        outState.putInt("z", bookProgress);
-        outState.putParcelable("zz", book);
+    public void setNowPlaying(String title) {
+        nowPlayingTextView.setText(title);
     }
 
-    public void updateRealTime(int bookProgress){
-        this.bookProgress = bookProgress;
-        bookProgressSeekBar.setProgress(this.bookProgress);
+    public void updateProgress(int progress) {
+        seekBar.setProgress(progress);
     }
-    public void updateSelection(Book book){
-        this.book = book;
-        maxDur = book.getDuration();
-        fromInitOfBook = true;
-        bookProgress = 0;
-    }
-    public interface ControlFragmentInterface{
-        void playBookOnClick(int start_point);
-        void pauseBookOnClick(int pause_point);
-        void seekToBookOnClick(int goto_point);
-        void stopBookOnClick();
+
+    interface ControlInterface {
+        void play();
+        void pause();
+        void stop();
+        void changePosition (int progress);
     }
 }

@@ -6,24 +6,16 @@ import android.os.Parcelable;
 import java.util.ArrayList;
 
 public class BookList implements Parcelable {
+    private ArrayList<Book> books;
 
-    private ArrayList<Book> Library;
-    private Book chosenBook;
-
-    public BookList(ArrayList<Book> Library) {
-        this.Library = Library;
-        chosenBook = null;
+    public BookList() {
+        books = new ArrayList<>();
     }
-
-    public int getSize() { return Library.size(); }
-    public Book getChosenBook(){return chosenBook;}
-    public ArrayList<Book> getLibrary() { return Library; }
-    public void setLibrary(ArrayList<Book> library) { Library = library; }
-    public void setChosenBook(Book b){chosenBook = b;}
 
     protected BookList(Parcel in) {
-        Library = in.createTypedArrayList(Book.CREATOR);
+        books = in.createTypedArrayList(Book.CREATOR);
     }
+
     public static final Creator<BookList> CREATOR = new Creator<BookList>() {
         @Override
         public BookList createFromParcel(Parcel in) {
@@ -35,85 +27,126 @@ public class BookList implements Parcelable {
             return new BookList[size];
         }
     };
+
+    public void clear () {
+        books.clear();
+    }
+
+    public void addAll (BookList books) {
+        for (int i = 0; i < books.size(); i++) {
+            this.books.add(books.get(i));
+        }
+    }
+
+    public void add(Book book) {
+        books.add(book);
+    }
+
+    public Book get(int position) {
+        return books.get(position);
+    }
+
+    public int size() {
+        return books.size();
+    }
+
     @Override
     public int describeContents() {
         return 0;
     }
+
     @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        dest.writeTypedList(Library);
-        dest.writeParcelable(chosenBook, flags);
+    public void writeToParcel(Parcel parcel, int i) {
+        parcel.writeTypedList(books);
     }
 }
-class Book implements Parcelable{
+class Book implements Parcelable {
 
     private int id;
-    private int duration;
-    //private int current_progress;
     private String title;
     private String author;
-    private String coverURL;
+    private String coverUrl;
+    private int duration;
 
-    public Book(int id, int duration, /*int current_progress,*/ String title, String author, String coverURL){
+    public Book(int id, String title, String author, String coverUrl, int duration) {
         this.id = id;
-        this.duration = duration;
         this.title = title;
         this.author = author;
-        this.coverURL = coverURL;
-        //this.current_progress = current_progress;
+        this.coverUrl = coverUrl;
+        this.duration = duration;
     }
 
     protected Book(Parcel in) {
         id = in.readInt();
-        duration = in.readInt();
-        //current_progress = in.readInt();
         title = in.readString();
         author = in.readString();
-        coverURL = in.readString();
+        coverUrl = in.readString();
+        duration = in.readInt();
     }
+
     public static final Creator<Book> CREATOR = new Creator<Book>() {
         @Override
-        public Book createFromParcel(Parcel in) { return new Book(in); }
-        @Override
-        public Book[] newArray(int size) { return new Book[size]; }};
-    @Override
-    public int describeContents() { return 0; }
-    @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        dest.writeInt(id);
-        dest.writeInt(duration);
-        //dest.writeInt(current_progress);
-        dest.writeString(title);
-        dest.writeString(author);
-        dest.writeString(coverURL); }
+        public Book createFromParcel(Parcel in) {
+            return new Book(in);
+        }
 
-    public int getId() { return id; }
-    public String getCoverURL() { return coverURL; }
+        @Override
+        public Book[] newArray(int size) {
+            return new Book[size];
+        }
+    };
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
     public String getTitle() {
         return title;
     }
-    public String getAuthor() {
-        return author;
-    }
+
     public void setTitle(String title) {
         this.title = title;
     }
+
+    public String getAuthor() {
+        return author;
+    }
+
     public void setAuthor(String author) {
         this.author = author;
     }
-    public void setId(int id) { this.id = id; }
-    public void setCoverURL(String coverURL) { this.coverURL = coverURL; }
-    public int getDuration() { return duration; }
-    public void setDuration(int duration) { this.duration = duration; }
-    //public void setCurrent_progress(int c){ this.current_progress = c;}
-    //public int getCurrentProgress(){return current_progress;}
+
+    public String getCoverUrl() {
+        return coverUrl;
+    }
+
+    public void setCoverUrl(String coverUrl) {
+        this.coverUrl = coverUrl;
+    }
+
+    public int getDuration() {
+        return duration;
+    }
+
+    public void setDuration(int duration) {
+        this.duration = duration;
+    }
+
     @Override
-    public String toString() {
-        return "Book{" +
-                "id=" + id +
-                ", title='" + title + '\'' +
-                ", author='" + author + '\'' +
-                ", coverURL='" + coverURL + '\'' +
-                '}';
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel parcel, int i) {
+        parcel.writeInt(id);
+        parcel.writeString(title);
+        parcel.writeString(author);
+        parcel.writeString(coverUrl);
+        parcel.writeInt(duration);
     }
 }

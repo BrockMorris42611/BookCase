@@ -39,40 +39,25 @@ import static android.graphics.Color.RED;
  */
 public class BookDetailsFragment extends Fragment {
 
+    private static final String BOOK_KEY = "book";
+    private Book book;
 
-    private static final String key = "Book";
-    private Book book; //the book we selected in the other fragment
-    private BookDetailsFragmentInterface tester; //here for better memory reference
+    TextView titleTextView, authorTextView;
+    ImageView coverImageView;
 
-    public BookDetailsFragment() {
-        // Required empty public constructor
-    }
+    public BookDetailsFragment() {}
 
-    @Override
-    public void onAttach(@NonNull Context context) {
-        super.onAttach(context);
-        try {
-            tester = (BookDetailsFragmentInterface) context; //are we working with an activity that implements our interface?
-        } catch (ClassCastException e) {
-            throw new ClassCastException(context.toString()
-                    + " must implement BookListFragmentInterface");
-        }
-    }
-
-    @Override
-    public void onDetach() {
-        super.onDetach();
-        tester = null; //null what we set earlier
-    }
-
-    // TODO: Rename and change types and number of parameters
     public static BookDetailsFragment newInstance(Book book) {
         BookDetailsFragment fragment = new BookDetailsFragment();
-        if(book != null) {
-            Bundle args = new Bundle(); //instantiate
-            args.putParcelable(key, book);
-            fragment.setArguments(args);
-        }
+        Bundle args = new Bundle();
+
+        /*
+         A Book implements the Parcelable interface
+         therefore we can place a Book inside a bundle
+         by using that put() method.
+         */
+        args.putParcelable(BOOK_KEY, book);
+        fragment.setArguments(args);
         return fragment;
     }
 
@@ -80,32 +65,36 @@ public class BookDetailsFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            book = getArguments().getParcelable(key); //get the arguments we set in the newInstance()
+            book = getArguments().getParcelable(BOOK_KEY);
         }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
         View v = inflater.inflate(R.layout.fragment_book_details, container, false);
 
-        TextView tvTitle = v.findViewById(R.id.BookTitleTextView);
-        TextView tvAuthor = v.findViewById(R.id.BookAuthorTextView);
-        ImageView ivCover = v.findViewById(R.id.bookCoverImgView);
+        titleTextView = v.findViewById(R.id.titleTextView);
+        authorTextView = v.findViewById(R.id.authorTextView);
+        coverImageView = v.findViewById(R.id.bookCoverImageView);
 
-        tvTitle.setText(book.getTitle()); //given the book we selected
-        tvTitle.setTextSize(30);
-
-        tvAuthor.setText(book.getAuthor());
-        tvAuthor.setTextSize(20);
-
-
-        Picasso.get().load(Uri.parse(book.getCoverURL())).into(ivCover);
-
+        /*
+        Because this fragment can be created with or without
+        a book to display when attached, we need to make sure
+        we don't try to display a book if one isn't provided
+         */
+        if (book != null)
+            displayBook(book);
         return v;
     }
-    public interface BookDetailsFragmentInterface {
-        public void display(Book b);
+
+    /*
+    This method is used both internally and externally (from the activity)
+    to display a book
+     */
+    public void displayBook(Book book) {
+        titleTextView.setText(book.getTitle());
+        authorTextView.setText(book.getAuthor());
+        Picasso.get().load(book.getCoverUrl()).into(coverImageView);
     }
 }

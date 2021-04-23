@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.BaseAdapter;
 import android.widget.ListView;
 
 
@@ -20,76 +21,77 @@ import android.widget.ListView;
  */
 public class BookListFragment extends Fragment {
 
-    private BookList BookListF; //the list we need to display
-    private String key = "BookInfo";
-    private BookListFragmentInterface tester;
-    BookListViewAdapter adapter;
-    ListView lv;
+    private static final String BOOK_LIST_KEY = "booklist";
+    private BookList books;
 
-    public BookListFragment() {
-        // Required empty public constructor
-    }
+    BookSelectedInterface parentActivity;
+    ListView listView;
 
-    @Override
-    public void onAttach(@NonNull Context context) {
-        super.onAttach(context);
-        try {
-            tester = (BookListFragmentInterface) context; //make sure we are operating on the context of a correct interface activity
-        } catch (ClassCastException e) {
-            throw new ClassCastException(context.toString()
-                    + " must implement BookListFragmentInterface");
-        }
-    }
+    public BookListFragment() {}
 
-    @Override
-    public void onDetach() {
-        super.onDetach();
-        tester = null; //null the allocated tester from onAttach()
-    }
-
-    // TODO: Rename and change types and number of parameters
-    public static BookListFragment newInstance(BookList BookListF) {
+    public static BookListFragment newInstance(BookList books) {
         BookListFragment fragment = new BookListFragment();
         Bundle args = new Bundle();
-        args.putParcelable("BookInfo", BookListF); //instantiate with new BookList so we can display
+
+        /*
+         A BookList implements the Parcelable interface
+         therefore we can place a BookList inside a bundle
+         by using that put() method.
+         */
+        args.putParcelable(BOOK_LIST_KEY, books);
         fragment.setArguments(args);
         return fragment;
+    }
+
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+
+        /*
+         This fragment needs to communicate with its parent activity
+         so we verify that the activity implemented our defined interface
+         */
+        if (context instanceof BookSelectedInterface) {
+            parentActivity = (BookSelectedInterface) context;
+        } else {
+            throw new RuntimeException("Please implement the required interface(s)");
+        }
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            this.BookListF = getArguments().getParcelable(key); //retrieve instantiate data
+            books = getArguments().getParcelable(BOOK_LIST_KEY);
         }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        View v = inflater.inflate(R.layout.fragment_book_list, container, false);
+        listView = (ListView) inflater.inflate(R.layout.fragment_book_list, container, false);
 
-        lv = v.findViewById(R.id.bkListView);
+        listView.setAdapter(new BooksAdapter(getContext(), books));
 
-
-        adapter = new BookListViewAdapter(getActivity(), BookListF.getLibrary());
-        lv.setAdapter(adapter);
-
-        lv.setOnItemClickListener(new ListView.OnItemClickListener(){
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                BookListF.setChosenBook(BookListF.getLibrary().get(position));
-                tester.sendSelectionBack(position); //when the button is pressed call the activity implemented function sending
-                // the position clicked back
+                parentActivity.bookSelected(position);
             }
         });
 
-
-        return v;
+        return listView;
     }
 
-    public interface BookListFragmentInterface {
-        void sendSelectionBack(int sel); //this is the interface to be used by the function in main
+    public void showNewBooks() {
+        ((BaseAdapter) listView.getAdapter()).notifyDataSetChanged();
+    }
+
+
+    /*
+    Interface for communicating with attached activity
+     */
+    interface BookSelectedInterface {
+        void bookSelected(int index);
     }
 }
