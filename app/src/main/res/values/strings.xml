@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">BookShelf</string>
+    <string name="search_button">Search</string>
+    <string name="prompt_search_hint">search book catalog</string>
+    <string name="pause_button">Pause</string>
+    <string name="play_button">Play</string>
+    <string name="stop_button">Stop</string>
+    <string name="now_playing">Now Playing:</string>
+</resources>
