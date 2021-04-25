@@ -13,6 +13,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BookCase"
         tools:replace="android:theme">
+        <service
+            android:name=".downloadIntentService"
+            android:exported="false"></service>
+
         <activity
             android:name=".BookSearchActivity"
             android:theme="@style/Theme.AppCompat.Dialog" />

@@ -1,17 +1,16 @@
 package temple.edu.bookcase;
 
+import android.app.IntentService;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
-import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -19,13 +18,15 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentTransaction;
 
-import java.util.ArrayList;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 import edu.temple.audiobookplayer.AudiobookService;
-import edu.temple.audiobookplayer.AudiobookService.BookProgress;
-import edu.temple.audiobookplayer.AudiobookService.MediaControlBinder;
 
 public class MainActivity extends AppCompatActivity implements BookListFragment.BookSelectedInterface, ControlFragment.ControlInterface {
 
@@ -36,6 +37,17 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
     private  ControlFragment controlFragment;
     private Book selectedBook, playingBook;
 
+    private SharedPreferences downloadStorage;
+    public final String STORAGE_KEY = "STORAGE_KEY";
+    SharedPreferences.Editor SPEditor;
+
+    File list_file; String list_file_name = "list_file"; //file and key used to restore the list          on reopen of app
+    File book_file; String book_file_name = "book_file"; //file and key used to restore the selected book on reopen of app
+
+    private final int MAX_NUM_OF_BOOKS = 7; // number of books as per the website we are extracting from.
+    boolean[] downloadedOrNot = new boolean[MAX_NUM_OF_BOOKS]; // keep track of which books are downloaded
+    int[] rememberedTime = new int[MAX_NUM_OF_BOOKS]; //remembered start times for each book
+
     private final String TAG_BOOKLIST = "booklist", TAG_BOOKDETAILS = "bookdetails";
     private final String KEY_SELECTED_BOOK = "selectedBook", KEY_PLAYING_BOOK = "playingBook";
     private final String KEY_BOOKLIST = "searchedook";
@@ -44,6 +56,8 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
     private AudiobookService.MediaControlBinder mediaControl;
     private boolean serviceConnected;
 
+    IntentService downloadIntentService;
+
     Intent serviceIntent;
 
     BookList bookList;
@@ -51,7 +65,7 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
     Handler progressHandler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
         @Override
         public boolean handleMessage(@NonNull Message message) {
-            // Don't update contols if we don't know what bok the service is playing
+            // Don't update contols if we don't know what book the service is playing
             if (message.obj != null && playingBook != null) {
                 controlFragment.updateProgress((int) (((float) ((AudiobookService.BookProgress) message.obj).getProgress() / playingBook.getDuration()) * 100));
                 controlFragment.setNowPlaying(getString(R.string.now_playing, playingBook.getTitle()));
@@ -86,6 +100,10 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
 
         fm = getSupportFragmentManager();
 
+        downloadStorage = getSharedPreferences(STORAGE_KEY, MODE_PRIVATE);
+
+        list_file = new File(getFilesDir(), list_file_name); //this file is going to store all the booklist
+        book_file = new File(getFilesDir(), book_file_name);
         findViewById(R.id.searchDialogButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -105,8 +123,10 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         }else {
             // Create empty booklist if
             bookList = new BookList();
-        }
 
+        }
+        loadInPreviousAppList();
+        loadInPreviousAppBook();
         twoPane = findViewById(R.id.container2) != null;
 
         Fragment fragment1;
@@ -155,20 +175,20 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
     public void bookSelected(int index) {
         // Store the selected book to use later if activity restarts
         selectedBook = bookList.get(index);
-
+        FileOutputStream fos;
+        try {
+            fos = openFileOutput(book_file_name, MODE_PRIVATE);
+            String s = "";
+            s += selectedBook.getTitle() + '\t' + selectedBook.getAuthor() + '\t' + selectedBook.getId() + '\t' + selectedBook.getCoverUrl() + '\t' + selectedBook.getDuration() + '\t' + '\n';
+            //System.out.println(s);
+            fos.write(s.getBytes());
+            fos.close();} catch (IOException e) {e.printStackTrace();}
         if (twoPane)
-            /*
-            Display selected book using previously attached fragment
-             */
-            bookDetailsFragment.displayBook(selectedBook);
+            bookDetailsFragment.displayBook(selectedBook);//Display selected book using previously attached fragment
         else {
-            /*
-            Display book using new fragment
-             */
             fm.beginTransaction()
-                    .replace(R.id.container_1, BookDetailsFragment.newInstance(selectedBook), TAG_BOOKDETAILS)
-                    // Transaction is reversible
-                    .addToBackStack(null)
+                    .replace(R.id.container_1, BookDetailsFragment.newInstance(selectedBook), TAG_BOOKDETAILS)//Display book using new fragment
+                    .addToBackStack(null)//Transaction is reversible
                     .commit();
         }
     }
@@ -208,10 +228,69 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
             if (bookList.size() == 0) {
                 Toast.makeText(this, getString(R.string.error_no_results), Toast.LENGTH_SHORT).show();
             }
+            FileOutputStream fos;
+            try {
+                fos = openFileOutput(list_file_name, MODE_PRIVATE);
+                String s = "";
+                Book b;
+                for(int i = 0; i < bookList.size(); i++){
+                    b = bookList.get(i);
+                    s += b.getTitle() + '\t' + b.getAuthor() + '\t' + b.getId() + '\t' + b.getCoverUrl() + '\t' + b.getDuration() + '\t' + '\n';
+                }
+                System.out.println(s);
+                fos.write(s.getBytes());
+                fos.close(); } catch (IOException e){e.printStackTrace();}
             showNewBooks();
         }
     }
-
+    void loadInPreviousAppList(){
+        if(!list_file.exists())
+            try { list_file.createNewFile();} catch (IOException e) { e.printStackTrace();}
+        else{
+            StringBuilder sb = new StringBuilder();
+            String []read_file_woo;
+            try{
+                FileInputStream inputStream = new FileInputStream(list_file);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+                String line = null;
+                while ((line = reader.readLine()) != null) {
+                    read_file_woo = line.split("\t");
+                    for(int i = 0; i < read_file_woo.length; i++) // data is stored >> title author id Url Duration
+                        System.out.println(read_file_woo[i]);
+                    bookList.add(new Book(Integer.parseInt(read_file_woo[2]), read_file_woo[0], read_file_woo[1],read_file_woo[3], Integer.parseInt(read_file_woo[4])));
+                    sb.append(line).append("\n");
+                }
+                inputStream.close(); }catch(OutOfMemoryError om){om.printStackTrace();}catch(Exception ex){ex.printStackTrace();}
+            String result = sb.toString();
+            System.out.println("\n" + result);
+        }
+        System.out.println(bookList.toString());
+    }
+    void loadInPreviousAppBook(){
+        if(!book_file.exists())
+            try { book_file.createNewFile();} catch (IOException e) { e.printStackTrace();}
+        else{
+            StringBuilder sb = new StringBuilder();
+            String []read_file_woo;
+            try{
+                FileInputStream inputStream = new FileInputStream(book_file);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+                String line = null;
+                while ((line = reader.readLine()) != null) {
+                    read_file_woo = line.split("\t");
+                    for(int i = 0; i < read_file_woo.length; i++) // data is stored >> title author id Url Duration
+                        System.out.println(read_file_woo[i]);
+                    selectedBook = new Book(Integer.parseInt(read_file_woo[2]), read_file_woo[0], read_file_woo[1],read_file_woo[3], Integer.parseInt(read_file_woo[4]));
+                    playingBook = selectedBook;
+                    controlFragment.setNowPlaying(selectedBook.getTitle());
+                    sb.append(line).append("\n");
+                }
+                inputStream.close(); }catch(OutOfMemoryError om){om.printStackTrace();}catch(Exception ex){ex.printStackTrace();}
+            String result = sb.toString();
+            System.out.println("\n" + result);
+        }
+        System.out.println(bookList.toString());
+    }
     @Override
     public void play() {
         if (selectedBook != null) {
