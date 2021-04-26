@@ -1,12 +1,9 @@
 package temple.edu.bookcase;
 
-import android.app.IntentService;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -46,7 +43,7 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
     File time_file; String time_file_name = "time_file"; //file and key used to restore the times of the books on reopen of app
     File downloaded_file; String downloaded_file_name = "downloaded_file"; //keeps track of what is downloaded and not
 
-    boolean[] downloadedOrNot = new boolean[MAX_NUM_OF_BOOKS]; // keep track of which books are downloaded
+    boolean[] isDownloaded = new boolean[MAX_NUM_OF_BOOKS]; // keep track of which books are downloaded
     int[] rememberedTime = new int[MAX_NUM_OF_BOOKS]; //remembered start times for each book
 
     private final String TAG_BOOKLIST = "booklist", TAG_BOOKDETAILS = "bookdetails";
@@ -104,7 +101,7 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         downloaded_file = new File(getFilesDir(), downloaded_file_name);
 
         Arrays.fill(rememberedTime, 0); //set all start times to zero unless stated otherwise
-        Arrays.fill(downloadedOrNot, false);
+        Arrays.fill(isDownloaded, false);
 
         findViewById(R.id.searchDialogButton).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -130,6 +127,7 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         loadInPreviousAppList();
         loadInPreviousAppBook();
         loadInPreviousAppTime();
+        loadInPreviousDownload();
         twoPane = findViewById(R.id.container2) != null;
 
         Fragment fragment1;
@@ -199,7 +197,8 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         if(!newAudioBook.exists()) {
             Intent z = new Intent(MainActivity.this, downloadIntentService.class);
             z.putExtra("book_id", b_id);
-            downloadedOrNot[b_id-1] = true;
+            startService(z);
+            isDownloaded[b_id-1] = true;
         }
     }
 
@@ -281,7 +280,6 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         if(!book_file.exists())
             try { book_file.createNewFile();} catch (IOException e) { e.printStackTrace();}
         else{
-            StringBuilder sb = new StringBuilder();
             String []read_file_woo;
             try{
                 FileInputStream inputStream = new FileInputStream(book_file);
@@ -289,16 +287,11 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
                 String line = null;
                 while ((line = reader.readLine()) != null) {
                     read_file_woo = line.split("\t");
-                    for(int i = 0; i < read_file_woo.length; i++) // data is stored >> title author id Url Duration
-                        System.out.println(read_file_woo[i]);
                     selectedBook = new Book(Integer.parseInt(read_file_woo[2]), read_file_woo[0], read_file_woo[1],read_file_woo[3], Integer.parseInt(read_file_woo[4]));
                     playingBook = selectedBook;
-                    controlFragment.setNowPlaying(selectedBook.getTitle());
-                    sb.append(line).append("\n");
                 }
+                controlFragment.setNowPlaying(selectedBook.getTitle());
                 inputStream.close(); }catch(OutOfMemoryError om){om.printStackTrace();}catch(Exception ex){ex.printStackTrace();}
-            String result = sb.toString();
-            System.out.println("\n" + result);
         }
         System.out.println(bookList.toString());
     }
@@ -306,7 +299,6 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         if(!time_file.exists())
             try { time_file.createNewFile();} catch (IOException e) { e.printStackTrace();}
         else{
-            StringBuilder sb = new StringBuilder();
             String []read_file_woo;
             try{
                 FileInputStream inputStream = new FileInputStream(time_file);
@@ -314,22 +306,16 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
                 String line;
                 while ((line = reader.readLine()) != null) {
                     read_file_woo = line.split(" ");
-                    for(int i = 0; i < read_file_woo.length; i++) { // data is stored >> title author id Url Duration
-                        System.out.println(read_file_woo[i]);
+                    for(int i = 0; i < read_file_woo.length; i++)// data is stored >> title author id Url Duration
                         rememberedTime[i] = Integer.parseInt(read_file_woo[i]);
-                    }
-                    sb.append(line).append("\n");
                 }
                 inputStream.close(); }catch(OutOfMemoryError om){om.printStackTrace();}catch(Exception ex){ex.printStackTrace();}
-            String result = sb.toString();
-            System.out.println("\n" + result);
         }
     }
     void loadInPreviousDownload(){
         if(!downloaded_file.exists())
             try{ downloaded_file.createNewFile();} catch (IOException e) {e.printStackTrace();}
         else{
-            StringBuilder sb = new StringBuilder();
             String []read_file_woo;
             try{
                 FileInputStream inputStream = new FileInputStream(downloaded_file);
@@ -337,24 +323,27 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
                 String line;
                 while ((line = reader.readLine()) != null) {
                     read_file_woo = line.split(" ");
-                    for(int i = 0; i < read_file_woo.length; i++) { // data is stored >> title author id Url Duration
-                        System.out.println(read_file_woo[i]);
-                        downloadedOrNot[i] = Boolean.parseBoolean(read_file_woo[i]);
-                    }
-                    sb.append(line).append("\n");
+                    for(int i = 0; i < read_file_woo.length; i++) // data is stored >> title author id Url Duration
+                        isDownloaded[i] = Boolean.parseBoolean(read_file_woo[i]);
                 }
                 inputStream.close(); }catch(OutOfMemoryError om){om.printStackTrace();}catch(Exception ex){ex.printStackTrace();}
-            String result = sb.toString();
-            System.out.println("\n" + result);
         }
     }
     @Override
     public void play() {
         if (selectedBook != null) {
             playingBook = selectedBook;
+            int playingBookId = playingBook.getId();
             controlFragment.setNowPlaying(getString(R.string.now_playing, playingBook.getTitle()));
             if (serviceConnected) {
-                mediaControl.play(selectedBook.getId());
+                System.out.println("00000000000000000000000000000000000000000000000000000000000" + isDownloaded[playingBookId-1]);
+                if(isDownloaded[playingBookId-1]){
+                    System.out.println("************************************************************************************* " + rememberedTime[playingBookId-1]);
+                    File toBePlayed = new File(getFilesDir(), String.valueOf(playingBookId));
+                    mediaControl.play(toBePlayed,rememberedTime[playingBookId-1]);
+                }else {
+                    mediaControl.play(selectedBook.getId()); //if the book isnt download play from the beginning
+                }
             }
 
             // Make sure that the service doesn't stop
@@ -363,17 +352,19 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         }
     }
 
+
     @Override
     public void pause(int progress) {
         if (serviceConnected) {
             mediaControl.pause();
-            rememberedTime[playingBook.getId()-1] = progress-10; //this saves the progress minus the 10 seconds
+            rememberedTime[playingBook.getId()-1] = (int) (((progress-10) / 100f) * playingBook.getDuration()); //this saves the progress minus the 10 seconds
         }
     }
 
     @Override
     public void stop() {
         if (serviceConnected)
+            rememberedTime[playingBook.getId()-1] = 0;
             mediaControl.stop();
 
         // If no book is playing, then it's fine to let
@@ -389,7 +380,7 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
 
     @Override
     public void updateRememberTime(int progress){
-        rememberedTime[playingBook.getId()-1] = progress-10;
+        rememberedTime[playingBook.getId()-1] = (int) (((progress-10) / 100f) * playingBook.getDuration());
     }
 
     @Override
@@ -403,6 +394,16 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
                 s += rememberedTime[i] + " ";
             }
             s += rememberedTime[rememberedTime.length-1]+ '\n';
+            //System.out.println(s);
+            fos.write(s.getBytes());
+            fos.close();} catch (IOException e) {e.printStackTrace();}
+        try {
+            fos = openFileOutput(downloaded_file_name, MODE_PRIVATE);
+            String s = "";
+            for(int i = 0; i < isDownloaded.length-1; i++){
+                s += isDownloaded[i] + " ";
+            }
+            s += isDownloaded[isDownloaded.length-1] + " " + '\n';
             //System.out.println(s);
             fos.write(s.getBytes());
             fos.close();} catch (IOException e) {e.printStackTrace();}
