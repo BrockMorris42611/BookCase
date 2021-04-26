@@ -1,29 +1,15 @@
 package temple.edu.bookcase;
 
 import android.content.Context;
-import android.graphics.Color;
-import android.net.Uri;
 import android.os.Bundle;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.widget.AppCompatSeekBar;
 import androidx.fragment.app.Fragment;
 
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
-
-import com.squareup.picasso.Picasso;
-
-import java.util.Objects;
-
-import temple.edu.bookcase.Book;
-import temple.edu.bookcase.R;
 
 
 public class ControlFragment extends Fragment {
@@ -32,6 +18,8 @@ public class ControlFragment extends Fragment {
 
     private TextView nowPlayingTextView;
     private SeekBar seekBar;
+
+    int remember = 0;
 
     public ControlFragment() {
         // Required empty public constructor
@@ -64,7 +52,7 @@ public class ControlFragment extends Fragment {
         l.findViewById(R.id.pauseButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                parentActivity.pause();
+                parentActivity.pause(remember);
             }
         });
         l.findViewById(R.id.stopButton).setOnClickListener(new View.OnClickListener() {
@@ -78,8 +66,9 @@ public class ControlFragment extends Fragment {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                if (b)
+                if (b) {
                     parentActivity.changePosition(i);
+                }
             }
 
             @Override
@@ -98,13 +87,15 @@ public class ControlFragment extends Fragment {
     }
 
     public void updateProgress(int progress) {
-        seekBar.setProgress(progress);
+        seekBar.setProgress(remember = progress);
+        parentActivity.updateRememberTime(remember);
     }
 
     interface ControlInterface {
         void play();
-        void pause();
+        void pause(int progress);
         void stop();
         void changePosition (int progress);
+        void updateRememberTime(int progress);
     }
 }
